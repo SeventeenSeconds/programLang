@@ -29,8 +29,8 @@ function parseInstruction(instruction) {
     if (method == "MOVW" || method == "MOVT") {
         return writeMov(inst);
     } else if (method == "ADD" || method == "SUB") {
-        return null;
-        writeMath(inst);
+        // return null;
+        return writeOp(inst);
     } else if (method == "LDR" || method == "STR") {
         return null;
         writeLS(inst);
@@ -41,16 +41,22 @@ function parseInstruction(instruction) {
 }
 
 function writeBytes(instruction) {
-    let hexArr = []; 
+    // console.log(instruction);
+    let binArr = [];
+    let byte;
+    // reverse the binary and convert the binary, not the hex
+
     for (let i = 0; i < instruction.length; i += 2) {
-        hexArr.push(binaryToHex(instruction[i]) + binaryToHex(instruction[i + 1])); 
+        binArr.push(instruction[i] + instruction[i + 1]);
     }
-    hexArr = hexArr.reverse();
-    for(let i = 0; i < hexArr.length; i++) {
-        fs.appendFile('kernel7.img', hexToBytes(hexArr[i])); 
+    binArr = binArr.reverse();
+    let parsedBinary = [];
+
+    for (let i = 0; i < binArr.length; i++) {
+        byte = parseInt(binArr[i], 2);
+        parsedBinary.push(byte);
     }
-    // fs.appendFileSync('kernel7.img', hexToBytes(instruction[i]));
-    // write the bytes to the file
+    fs.appendFileSync('kernel7.img', Buffer.from(parsedBinary));
 }
 
 function writeMov(instruction) {
@@ -76,8 +82,36 @@ function writeMov(instruction) {
     return binary;
 }
 
-function writeMath(instruction) {
+function writeOp(instruction) {
+    let binary = "1110 00";
+    let iBit = false;
+    let sBit = false;
+    if (instruction.length == 5) {
+        iBit = true;
+        sBit = true;
+    } else if (instruction.length == 4) {
+        if (instruction[4] == "S") {
+            sBit = true;
+        } else {
+            iBit = true;
+        }
+    }
+    // IBIT
+    binary += (iBit ? "1" : "0");
+    if (instruction[0] == "SUB") {
+        binary += "0 010";
+    } else if (instruction[0] == "ADD") {
+        binary += "0 100";
+    }
+    // SBIT
+    binary += (sBit ? "1" : "0") + " ";
+    binary += returnRegisterIVBin(instruction[2]) + " ";
+    binary += returnRegisterIVBin(instruction[1]) + " ";
 
+    let binIV = hexToBin(instruction[3]);
+    binary += binIV.substring(4, 8) + " ";
+    binary += binIV.substring(8, 12) + " ";
+    binary += binIV.substring(12, 16);
 }
 
 function writeLS(instruction) {
