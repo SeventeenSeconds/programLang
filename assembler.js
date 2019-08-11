@@ -1,7 +1,4 @@
-// MOVW R4, 0 
-// 1110 0011 0000 0000 0100 0000 0000 0000 
-// e3 00 40 00
-// 00 40 00 e3
+
 
 // instructions
 // movw, movt, add, ldr, or, str, sub, b, 
@@ -16,6 +13,9 @@ fs.readFile('./machine-instructions.txt', function (err, data) {
     instructions.forEach(instruction => {
         let binaryInstruction = parseInstruction(instruction);
         if (binaryInstruction) {
+            // console.log(binaryInstruction); 
+            // binInst = binaryInstruction.split(" "); 
+            // console.log(binInst); 
             writeBytes(binaryInstruction.split(" "));
         }
     });
@@ -28,15 +28,15 @@ function parseInstruction(instruction) {
     method = inst[0].toUpperCase();
     if (method == "MOVW" || method == "MOVT") {
         return writeMov(inst);
-    } else if (method == "ADD" || method == "SUB") {
+    } else if (method == "ADD" || method == "SUB" || method == "OR") {
         // return null;
         return writeOp(inst);
     } else if (method == "LDR" || method == "STR") {
-        return null;
-        writeLS(inst);
+        // return null;
+        return writeLS(inst);
     } else if (method == "B") {
-        return null;
-        writeBranch(inst);
+        // return null;
+        return writeBranch(inst);
     }
 }
 
@@ -97,11 +97,14 @@ function writeOp(instruction) {
         }
     }
     // IBIT
+    console.log(instruction[0]); 
     binary += (iBit ? "1" : "0");
     if (instruction[0] == "SUB") {
         binary += "0 010";
     } else if (instruction[0] == "ADD") {
         binary += "0 100";
+    } else if (instruction[0] == "OR") {
+        binary += "1 100"
     }
     // SBIT
     binary += (sBit ? "1" : "0") + " ";
@@ -112,14 +115,52 @@ function writeOp(instruction) {
     binary += binIV.substring(4, 8) + " ";
     binary += binIV.substring(8, 12) + " ";
     binary += binIV.substring(12, 16);
+    return binary; 
 }
 
 function writeLS(instruction) {
+    //TODO: I can figure out a system to determine 
+    // the I bit if I need - the same way I did it with the s and i bit 
+    // in the op codes
 
+    //(base address) into r3 from r2 "LDR R3 (R2)"
+
+    let binary = "1110 0100 000";
+    if (instruction[0] == "STR") {
+        binary += "0 ";
+    } else {
+        binary += "1 ";
+    }
+
+    binary += returnRegisterIVBin(instruction[2]) + " ";
+
+    binary += returnRegisterIVBin(instruction[1]) + " 0000 0000 0000";
+    return binary; 
 }
 
 function writeBranch(instruction) {
+    console.log("branch"); 
+    // You can do the link bit the same way you did the subtract bit
+    let binary = "";
+    if (instruction.length == 3) {
+        // WTF
+        // console.log(instruction[2]); 
+        // console.log(instruction[2] == "NE");
+        binary += "0001 ";
+    } else {
+        binary += "1110 ";
+    }
 
+    binary += "1010 "
+    let ioBin = hexToBin(instruction[1]);
+    ioBin = padBinaryZeros(ioBin, 24);
+    for (let i = 0; i < 24; i += 4) {
+        // console.log(i + " + " + (i+ 4)); 
+        binary += ioBin.substring(i, i + 4) + " ";
+    }
+    // binary += ioBin.substring(0, 4) + " "; 
+    // binary += ioBin; 
+    return binary.trim(); 
 }
 
 (255).toString(); // "255" (default is radix 10)
@@ -141,21 +182,24 @@ function binaryToHex(binary) {
     return parseInt(binary, 2).toString(16);
 }
 
-function hexToBytes(hex) {
-    for (var bytes = [], c = 0; c < hex.length; c += 2)
-        bytes.push(parseInt(hex.substr(c, 2), 16));
-    return bytes;
-}
+// function hexToBytes(hex) {
+//     for (var bytes = [], c = 0; c < hex.length; c += 2)
+//         bytes.push(parseInt(hex.substr(c, 2), 16));
+//     return bytes;
+// }
 
 function returnRegisterIVBin(register) {
     let reg = register.replace("R", "");
     return padBinaryZeros(parseInt(reg).toString(2), 4);
 }
 
+
 function padBinaryZeros(bin, limit) {
     let zeros = "";
-    for (let i = 0; i < (limit - bin.length); i++) {
-        zeros += "0";
+    if (bin.length < limit) {
+        for (let i = 0; i < (limit - bin.length); i++) {
+            zeros += "0";
+        }
     }
     return zeros + bin;
 }
@@ -164,5 +208,3 @@ function padBinaryZeros(bin, limit) {
 
 // split them into the peices of the grammar - movw would be 1 chunk of this instruction - the opperator bit? whatever it's called
 // write bytes to file for each parsed instruction
-
-
